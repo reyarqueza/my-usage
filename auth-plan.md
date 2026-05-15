@@ -12,6 +12,8 @@
 > 
 > Framework: Next.js 16 (App Router) using Server Actions.
 > 
+> UI: shadcn/ui for all frontend surfaces — login page, dashboard, and shared layout (Tailwind CSS + Radix primitives via copied source components).
+> 
 > Middleware: Strict protection. Redirect unauthenticated users from /dashboard to /login.
 > 
 > Required Deliverables:
@@ -32,38 +34,88 @@
 
 # GitHub-only Auth.js + Neon (Vercel integration) — implementation plan
 
-Greenfield blueprint for **GitHub-only authentication** using **Auth.js (NextAuth v5)**, **Neon Postgres** via the **Vercel Neon integration**, and **`@auth/neon-adapter`** with **`@neondatabase/serverless`** (no Prisma or Drizzle).
+Greenfield blueprint for **GitHub-only authentication** using **Auth.js (NextAuth v5)**, **Neon Postgres** via the **Vercel Neon integration**, and **`@auth/neon-adapter`** with **`@neondatabase/serverless`** (no Prisma or Drizzle). All user-facing UI is built with **shadcn/ui** (login, dashboard, shared layout).
 
 Assumes a standard **Next.js 16 App Router** layout (`app/`, or `src/app/` if using `src/`).
+
+## Technical constraints (summary)
+
+| Area | Choice |
+| --- | --- |
+| Auth provider | GitHub OAuth only |
+| Database | Neon Postgres (serverless), Vercel Neon integration |
+| DB access | `@auth/neon-adapter` + `@neondatabase/serverless` — **no Prisma or Drizzle** |
+| Framework | Next.js 16 App Router, Server Actions for OAuth trigger |
+| UI | **shadcn/ui** — components copied into `components/ui/`; Tailwind CSS for styling |
+| Middleware | Strict `/dashboard` protection → redirect to `/login` |
 
 ## Architecture (high level)
 
 ```mermaid
-flowchart LR
-  subgraph vercel [Vercel]
+flowchart TB
+  subgraph browser [Browser]
+    LoginPage["app/(auth)/login/page.tsx"]
+    DashPage["app/(dashboard)/dashboard/page.tsx"]
+  end
+
+  subgraph ui [shadcn UI layer]
+    RootLayout["app/layout.tsx + globals.css theme tokens"]
+    AuthLayout["app/(auth)/layout.tsx — centered shell"]
+    DashLayout["app/(dashboard)/layout.tsx — header + main"]
+    Shadcn["components/ui/* — Button, Card, Avatar, ..."]
+    LoginForm["components/login-form.tsx — Card + Button"]
+    WelcomeCard["components/welcome-card.tsx — Card + Avatar"]
+    AppHeader["components/app-header.tsx — header + sign-out"]
+  end
+
+  subgraph vercel [Vercel / Next.js]
     Env[DATABASE_URL + OAuth secrets]
     MW[middleware.ts]
     RT["app/api/auth/[...nextauth]/route.ts"]
+    LoginAction["loginWithGitHub Server Action"]
   end
+
   subgraph authjs [Auth.js]
-    AuthTS[auth.ts Pool + NeonAdapter]
+    AuthTS["auth.ts — Pool + NeonAdapter"]
   end
+
   subgraph neon [Neon]
-    PG[(Postgres tables)]
+    PG[(users accounts sessions)]
   end
-  Env --> AuthTS
+
+  LoginPage --> LoginForm
+  LoginForm --> Shadcn
+  DashPage --> WelcomeCard
+  DashPage --> DashLayout
+  LoginPage --> AuthLayout
+  DashLayout --> AppHeader
+  AppHeader --> Shadcn
+  WelcomeCard --> Shadcn
+  RootLayout --> AuthLayout
+  RootLayout --> DashLayout
+
+  LoginForm -->|"form action"| LoginAction
+  LoginAction --> AuthTS
   AuthTS --> RT
   AuthTS --> MW
-  NeonAdapter --> PG
-  DashboardSQL[Dashboard sql tag] --> PG
+  MW -->|"no session"| LoginPage
+  NeonAdapter["NeonAdapter(pool)"] --> PG
+  AuthTS --> NeonAdapter
+  WelcomeCard -->|"neon sql tag read"| PG
+  DashPage -->|"auth() session"| AuthTS
 ```
 
+**Data vs UI split**
+
 - **Sessions and user rows** are written by **Auth.js** through **`NeonAdapter(Pool)`** on sign-in.
-- **Dashboard display name** is read with a **separate** Neon serverless **`neon` SQL tagged template** query keyed by the signed-in user’s database id (from `auth()`), so you exercise both **adapter Pool writes** and **direct SQL reads** without an ORM.
+- **Dashboard display name** is read with a **separate** Neon serverless **`neon` SQL tagged template** query keyed by the signed-in user’s database id (from `auth()`), then passed into a **shadcn `Card`** for display.
+- **shadcn/ui does not participate in auth** — it only composes Server Components / Client boundaries around existing `auth()`, Server Actions, and SQL reads.
 
 ---
 
 ## 1) Dependencies (minimal set)
+
+### Auth + database
 
 Install (versions float to current stable; align `next-auth` with Auth.js v5 docs):
 
@@ -73,17 +125,46 @@ Install (versions float to current stable; align `next-auth` with Auth.js v5 doc
 | `@auth/neon-adapter` | Official Postgres adapter implementation for Neon |
 | `@neondatabase/serverless` | **`Pool`** for the adapter + **`neon` SQL tag** for raw queries |
 
-Optional but typical for Next 16 / TypeScript:
-
-- `typescript`, `@types/node`, `@types/react`, `@types/react-dom` (if not already present from `create-next-app`)
-
-**Peer constraint (per npm / Auth.js docs):** `@auth/neon-adapter` expects a compatible `@neondatabase/serverless` (supports both `^0.10.x` and `^1.x` lines; let the package manager resolve within peer ranges).
-
 **Install command:**
 
 ```bash
 npm install next-auth @auth/neon-adapter @neondatabase/serverless
 ```
+
+**Peer constraint (per npm / Auth.js docs):** `@auth/neon-adapter` expects a compatible `@neondatabase/serverless` (supports both `^0.10.x` and `^1.x` lines).
+
+### UI — shadcn/ui (via CLI, not a single npm package)
+
+shadcn copies component **source** into the repo. The CLI installs peer utilities on `init` and per-component on `add`:
+
+| Installed by CLI (typical) | Role |
+| --- | --- |
+| `tailwindcss`, `postcss`, `autoprefixer` | Utility-first styling (from Next scaffold + shadcn) |
+| `class-variance-authority`, `clsx`, `tailwind-merge` | Variants + `cn()` helper in `lib/utils.ts` |
+| `@radix-ui/react-*` | Primitives per added component (e.g. `slot` for Button) |
+| `lucide-react` | Icons (GitHub icon on login button, UI chrome) |
+
+**Prerequisite:** scaffold Next.js with **Tailwind** (`create-next-app` with Tailwind enabled) before `shadcn init`.
+
+**Init (non-interactive, agent-safe):**
+
+```bash
+npx shadcn@latest init -d
+```
+
+This creates `components.json`, theme CSS variables in `app/globals.css`, and `lib/utils.ts`.
+
+**Components to add for this app** (install after init):
+
+```bash
+npx shadcn@latest add button card avatar separator dropdown-menu
+```
+
+Optional later: `sonner` (toasts), `skeleton` (loading states).
+
+Optional but typical for Next 16 / TypeScript:
+
+- `typescript`, `@types/node`, `@types/react`, `@types/react-dom` (if not already present from `create-next-app`)
 
 ---
 
@@ -228,13 +309,34 @@ export const config = {
 
 ---
 
-## 5) `/login` + Server Actions (GitHub OAuth)
+## 5) UI shell — layouts + shadcn composition
 
-Planned route: `app/login/page.tsx`
+**Route groups** keep auth and app chrome separate:
 
-**Server Action pattern (Auth.js v5):**
+| Path | File | UI role |
+| --- | --- | --- |
+| `/` | `app/layout.tsx` | Root: `html`/`body`, `globals.css` theme, optional `font-sans` |
+| `/login` | `app/(auth)/layout.tsx` | Minimal centered column (full viewport, muted background) |
+| `/login` | `app/(auth)/login/page.tsx` | Renders `<LoginForm />` only |
+| `/dashboard` | `app/(dashboard)/layout.tsx` | App shell: `<AppHeader />` + `<main>` for children |
+| `/dashboard` | `app/(dashboard)/dashboard/page.tsx` | Server page: `auth()` + SQL → `<WelcomeCard name={...} />` |
 
-Define a server action in the same file (or colocated module) that calls:
+**Shared components** (all shadcn-backed):
+
+- `components/login-form.tsx` — `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`; `Button` with `formAction={loginWithGitHub}` (Server Action).
+- `components/app-header.tsx` — product title, `Avatar` (session image), `DropdownMenu` with **Sign out** (`signOut()` Server Action).
+- `components/welcome-card.tsx` — `Card` showing “Welcome, {name}” and optional `Avatar`.
+
+**Theming:** use default shadcn CSS variables (`--background`, `--primary`, etc.) in `globals.css`; no custom design system required for v1.
+
+---
+
+## 6) `/login` + Server Actions (GitHub OAuth)
+
+Planned route: `app/(auth)/login/page.tsx`  
+Planned UI: `components/login-form.tsx`
+
+**Server Action** (colocated `app/actions/auth.ts` or inside the form module):
 
 ```ts
 "use server"
@@ -246,15 +348,39 @@ export async function loginWithGitHub() {
 }
 ```
 
-Wire a single **“Continue with GitHub”** button to that action.
+**Login UI (shadcn):**
+
+```tsx
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { loginWithGitHub } from "@/app/actions/auth"
+
+export function LoginForm() {
+  return (
+    <Card className="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Use your GitHub account to continue.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form action={loginWithGitHub}>
+          <Button type="submit" className="w-full">
+            Continue with GitHub
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+```
 
 ---
 
-## 6) Dashboard “Welcome” — fetch GitHub display name via SQL tag
+## 7) Dashboard “Welcome” — fetch GitHub display name via SQL tag
 
 Use **`neon`** from `@neondatabase/serverless` for tagged-template queries (distinct from the adapter’s `Pool`, but same integration `DATABASE_URL`).
 
-**Server Component approach (simplest):** `app/dashboard/page.tsx` (or a child server component)
+**Server Component approach (simplest):** `app/(dashboard)/dashboard/page.tsx` fetches data; `components/welcome-card.tsx` renders UI.
 
 1. `const session = await auth()`
 2. If no session, rely on middleware (defense in depth: still `redirect("/login")`).
@@ -266,15 +392,16 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 const rows = await sql`select name from users where id = ${Number(session.user.id)} limit 1`
+const displayName = rows[0]?.name ?? session.user.name ?? "GitHub user"
 ```
 
-Render: `Welcome, {rows[0]?.name ?? session.user.name ?? "GitHub user"}`.
+5. Pass `displayName` and `session.user.image` into `<WelcomeCard />` (shadcn `Card` + `Avatar`).
 
 **Operational note:** Vercel’s Neon integration may provide both pooled and unpooled URLs (`DATABASE_URL_UNPOOLED`, `POSTGRES_URL_NON_POOLING`, etc.). For a read-only `SELECT`, either often works—confirm which URL Neon documents for **serverless queries** in your project settings.
 
 ---
 
-## 7) Environment variables — Vercel Neon integration + GitHub + Auth.js
+## 8) Environment variables — Vercel Neon integration + GitHub + Auth.js
 
 ### From Vercel ↔ Neon integration (typical)
 
@@ -315,34 +442,49 @@ Auth.js GitHub provider env vars (per Auth.js docs):
 
 ---
 
-## 8) File checklist (implementation order)
+## 9) File checklist (implementation order)
 
-1. Add dependencies + ensure Next 16 App Router baseline exists.
-2. Apply SQL schema in Neon.
-3. Add `auth.ts` with **Pool-in-factory** + `NeonAdapter` + GitHub provider.
-4. Add `app/api/auth/[...nextauth]/route.ts`.
-5. Add `middleware.ts` with `/dashboard` protection.
-6. Add `app/login/page.tsx` with server action calling `signIn("github")`.
-7. Add `app/dashboard/page.tsx` with `auth()` + `neon` SQL welcome query.
+1. Scaffold Next 16 App Router with **TypeScript + Tailwind**.
+2. **Initialize shadcn:** `npx shadcn@latest init -d`; add `button`, `card`, `avatar`, `separator`, `dropdown-menu`.
+3. Add auth dependencies; apply SQL schema in Neon.
+4. Add `auth.ts` with **Pool-in-factory** + `NeonAdapter` + GitHub provider.
+5. Add `app/api/auth/[...nextauth]/route.ts`.
+6. Add `middleware.ts` with `/dashboard` protection.
+7. Add root + route-group layouts (`app/layout.tsx`, `(auth)/layout.tsx`, `(dashboard)/layout.tsx`).
+8. Add `components/login-form.tsx` + `app/(auth)/login/page.tsx` + `loginWithGitHub` action.
+9. Add `components/app-header.tsx` (sign-out) + `components/welcome-card.tsx`.
+10. Add `app/(dashboard)/dashboard/page.tsx` with `auth()` + `neon` SQL → `WelcomeCard`.
 
 ---
 
-## 9) Post-implementation verification (manual)
+## 10) Post-implementation verification (manual)
 
 - Visit `/dashboard` logged out → redirected to `/login`.
-- Click GitHub sign-in → OAuth → lands on `/dashboard`.
+- Login page shows centered shadcn **Card** and full-width **Button**.
+- Click GitHub sign-in → OAuth → lands on `/dashboard` inside **dashboard layout** (header visible).
 - Confirm rows appear in `users`, `accounts`, `sessions`.
-- Dashboard welcome shows DB `users.name` (and falls back sensibly).
+- Dashboard **WelcomeCard** shows DB `users.name` (and falls back sensibly); **Avatar** uses GitHub image when present.
+- Sign out from header **DropdownMenu** clears session and returns to `/login`.
 
 ---
 
 ## Implementation todos
 
-- [ ] Add `next-auth`, `@auth/neon-adapter`, `@neondatabase/serverless` (Next 16 baseline if missing)
+### Scaffold + UI foundation
+
+- [ ] Create Next.js 16 app (App Router, TypeScript, **Tailwind CSS**)
+- [ ] Run `npx shadcn@latest init -d` (creates `components.json`, `lib/utils.ts`, theme in `globals.css`)
+- [ ] Run `npx shadcn@latest add button card avatar separator dropdown-menu`
+- [ ] Add route-group layouts: `app/(auth)/layout.tsx`, `app/(dashboard)/layout.tsx`
+- [ ] Build `components/login-form.tsx`, `components/app-header.tsx`, `components/welcome-card.tsx`
+
+### Auth + database
+
+- [ ] Add `next-auth`, `@auth/neon-adapter`, `@neondatabase/serverless`
 - [ ] Run Neon SQL script (`users`, `accounts`, `sessions`, `verification_token` + indexes)
 - [ ] Implement `auth.ts`: Pool inside NextAuth factory, NeonAdapter, GitHub-only, DB sessions
 - [ ] Wire `app/api/auth/[...nextauth]/route.ts` to handlers
 - [ ] Add `middleware.ts`: unauthenticated `/dashboard` → `/login` with safe matcher
-- [ ] Add `app/login` with server action calling `signIn("github")`
-- [ ] Add `app/dashboard` server component: `auth()` + `neon` SQL `select name from users`
+- [ ] Add `loginWithGitHub` / `signOut` Server Actions; wire login **Button** and header **DropdownMenu**
+- [ ] Add `app/(auth)/login/page.tsx` and `app/(dashboard)/dashboard/page.tsx` (`auth()` + `neon` SQL → `WelcomeCard`)
 - [ ] Map Vercel Neon vars to `DATABASE_URL` + set `AUTH_*` + GitHub OAuth callback URL
