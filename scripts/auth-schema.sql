@@ -1,5 +1,4 @@
 -- Auth.js Neon adapter baseline schema (+ helpful constraints)
--- Run in the Neon SQL Editor before first sign-in.
 
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
