@@ -12,7 +12,19 @@ Typical pattern:
 
 - **Neon MCP** — uses your Neon account; exposes `list_projects`, `run_sql`, `run_sql_transaction`, `get_database_tables`, etc.
 - **Vercel MCP** — uses your Vercel account; exposes `deploy_to_vercel`, `list_projects`, `list_teams`, deployment logs, etc.
-- **GitHub** — often configured as a GitHub MCP server *or* you use the **`gh` CLI** locally (authenticated via `gh auth login`) for `repo create`, `push`, and PRs. This runbook used **`gh`** for Git because it is reliable and matches common workflows.
+- **GitHub MCP** (Cursor **GitHub** integration) — exposes tools such as **`create_repository`**, **`push_files`**, **`get_me`**, and ~40 related APIs once the server is **enabled and authenticated** for the workspace. The agent only receives these tools if Cursor has attached that MCP server to the current chat session.
+
+### GitHub MCP: create repo + initial upload (recommended flow)
+
+Once **`plugin-github-github`** appears in the agent’s available tool list:
+
+1. **`get_me`** — read `login` (the `owner` for later calls).
+2. **`create_repository`** — e.g. `{ "name": "my-usage", "private": false }` — omit **`autoInit`** / set **`autoInit`: false** so the repo stays empty until your first **`push_files`** (avoids conflicting `README` on `main`).
+3. **`push_files`** — `{ "owner": "<login>", "repo": "my-usage", "branch": "main", "message": "Initial commit", "files": [ { "path": "package.json", "content": "<string>" }, ... ] }`.
+
+Use the same paths as **`git ls-files`** (committed sources only — **never** `node_modules` or `.next`). Large trees may need splitting across multiple **`push_files`** commits if GitHub MCP hits size limits.
+
+**Workspace descriptors:** Cursor stores MCP tool schemas under **`~/.cursor/projects/<workspace-id>/mcps/`**. For this repo, **`plugin-github-github`** was copied alongside Neon/Vercel so the GitHub definitions exist on disk; the tools still **only work** after the GitHub MCP server is **linked and authorized** in **Cursor Settings → MCP**.
 
 After configuration, agents can call MCP tools through Cursor’s tool layer (the same way other MCP servers are invoked).
 
@@ -30,21 +42,11 @@ For a **fresh** database branch, run the same `run_sql_transaction` (or paste `s
 
 ### 2. GitHub — repository and push
 
-Performed with the **GitHub CLI** (`gh`), assuming `gh auth login` is already complete:
+**Preferred (no local `gh auth`):** use **GitHub MCP** as described above (`create_repository` + `push_files`).
 
-```bash
-cd /path/to/my-usage
-git add -A
-git commit -m "..."   # if there are commits to push
-gh repo create <owner>/my-usage --public --source=. --remote=origin --push
-# If the repo already exists:
-git remote add origin https://github.com/<owner>/my-usage.git
-git push -u origin main
-```
+**Fallback — GitHub CLI:** if MCP is unavailable, use `gh repo create` / `git push` with `gh auth login`.
 
-Replace `<owner>` with your GitHub user or organization.
-
-**This session:** `gh auth status` reported *no GitHub host login*, so **no remote repository was created automatically**. After you run `gh auth login`, execute the commands above (or connect the repo in the GitHub UI and `git remote add` + `git push`). Commit `832db52` on `main` is ready to push locally.
+**Agent limitation (this session):** the active Cursor agent **did not register** any `plugin-github-github-*` tools (only Neon and Vercel GitHub-adjacent tools appeared). So **`create_repository` / `push_files` could not be invoked from here** even if your account has a valid token elsewhere. **Fix:** ensure **GitHub** is enabled under **Cursor Settings → MCP** for this project, then **reload the window** or **start a new agent chat** and ask again to create `my-usage` and run **`push_files`** with the output of `git ls-files`.
 
 ### 3. Vercel — deploy
 
@@ -80,3 +82,4 @@ Do not commit live connection strings; use Vercel + Neon integration env vars in
 | Neon `run_sql` fails with “already exists” | Schema already applied; use `get_database_tables` / Neon console to confirm |
 | Vercel deploy fails | Run `vercel link` locally or connect the Git repo in the Vercel UI; ensure MCP is logged into the correct team |
 | Auth callback mismatch | `AUTH_URL` must match the site URL; GitHub OAuth callback must exactly match Auth.js `/api/auth/callback/github` |
+| GitHub MCP tools missing in agent | Enable GitHub in **Settings → MCP**, confirm `plugin-github-github` under the workspace `mcps` folder, **reload Cursor** or use a **new chat** so tools register |
