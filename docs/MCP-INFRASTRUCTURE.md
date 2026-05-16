@@ -44,11 +44,14 @@ git push -u origin main
 
 Replace `<owner>` with your GitHub user or organization.
 
+**This session:** `gh auth status` reported *no GitHub host login*, so **no remote repository was created automatically**. After you run `gh auth login`, execute the commands above (or connect the repo in the GitHub UI and `git remote add` + `git push`). Commit `832db52` on `main` is ready to push locally.
+
 ### 3. Vercel — deploy
 
 | Step | MCP / action | Notes |
 |------|----------------|--------|
-| Deploy | `deploy_to_vercel` (Vercel MCP, no arguments) | Deploys the **current project directory** linked to Vercel. First-time setup may require linking the repo in the Vercel dashboard or CLI (`vercel link`). |
+| Deploy (MCP) | `deploy_to_vercel` (Vercel MCP) | In this environment the tool **returned guidance** to run `vercel deploy` locally rather than performing a remote deploy by itself. Behavior can vary by Cursor / MCP version. |
+| Deploy (CLI) | `vercel deploy --yes` from the repo root | **Succeeded:** linked project `rey-arquezas-projects/my-usage`, created `.vercel/` (gitignored). Example deployment URL: `https://my-usage-o5epxrmrl-rey-arquezas-projects.vercel.app` — use the Vercel dashboard for the canonical production alias. |
 
 After deploy:
 
