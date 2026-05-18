@@ -11,7 +11,9 @@ export function ModeToggle() {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    setMounted(true)
+    React.startTransition(() => {
+      setMounted(true)
+    })
   }, [])
 
   if (!mounted) {
