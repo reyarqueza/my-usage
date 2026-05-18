@@ -13,6 +13,18 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Tests
+
+Unit tests run with **Vitest** and **happy-dom**. Coverage is limited to **`lib/**/*.ts`**, **`app/actions/**/*.ts`**, and **`proxy.ts`**, with **100%** thresholds on statements, branches, functions, and lines for those files (see [`vitest.config.ts`](vitest.config.ts)).
+
+```bash
+npm test              # single run (CI-style)
+npm run test:watch    # watch mode while developing
+npm run test:coverage # coverage report + threshold enforcement
+```
+
+HTML coverage output is written under `coverage/` (ignored by git and ESLint).
+
 **Environment:** create **`.env.local`** (do not commit) with at least:
 
 | Variable | Role |

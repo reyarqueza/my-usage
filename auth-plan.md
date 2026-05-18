@@ -168,6 +168,22 @@ Optional but typical for Next 16 / TypeScript:
 
 - `typescript`, `@types/node`, `@types/react`, `@types/react-dom` (if not already present from `create-next-app`)
 
+### Unit tests (Vitest)
+
+Dev-only toolchain:
+
+| Package | Role |
+| --- | --- |
+| `vitest` | Test runner |
+| `@vitest/coverage-v8` | Coverage (v8 provider) |
+| `happy-dom` | DOM-like environment for Vitest |
+
+**Scripts:** `npm test` (single run), `npm run test:watch` (watch), `npm run test:coverage` (report + thresholds).
+
+**Coverage scope:** `vitest.config.ts` limits instrumentation to `lib/**/*.ts`, `app/actions/**/*.ts`, and root `proxy.ts`, with **100%** thresholds on that set. Tests mock `@/auth` where the real adapter and OAuth would be inappropriate in a unit run.
+
+**Test files in this repo:** `lib/utils.test.ts`, `app/actions/auth.test.ts`, `proxy.test.ts`.
+
 ---
 
 ## 2) `auth.ts` — GitHub-only + Neon `Pool` inside the Auth.js factory
@@ -465,6 +481,7 @@ Auth.js GitHub provider env vars (per Auth.js docs):
 8. Add hero login page, `login-form.tsx`, `loginWithGitHub` action, theme controls (`mode-toggle`, `auth-theme-corner`).
 9. Add `app-header.tsx`, `welcome-card.tsx`.
 10. Add `app/(dashboard)/dashboard/page.tsx` with `auth()` + `neon` SQL → `WelcomeCard`.
+11. Add Vitest: `vitest.config.ts`, scoped coverage, and unit tests for `lib/utils`, auth server actions, and `proxy.ts`.
 
 ---
 
@@ -501,3 +518,8 @@ These items match the **implemented** application as of maintenance of this docu
 - [x] `loginWithGitHub` / `logout` Server Actions; login form + header menus
 - [x] `app/(auth)/login/page.tsx` (hero) + `app/(dashboard)/dashboard/page.tsx` (`auth()` + `neon` SQL → `WelcomeCard`)
 - [x] Env: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `AUTH_GITHUB_*` (local + Vercel) and GitHub OAuth callbacks
+
+### Tests
+
+- [x] Vitest + `@vitest/coverage-v8` + `happy-dom`; [`vitest.config.ts`](vitest.config.ts) with scoped **100%** coverage thresholds
+- [x] `lib/utils.test.ts`, `app/actions/auth.test.ts`, `proxy.test.ts` (Auth.js mocked in action/proxy tests)
