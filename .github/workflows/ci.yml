@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  run-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests and check coverage
+        run: |
+          set -o pipefail
+          npm run test:coverage 2>&1 | tee coverage-output.txt
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          if [ -f coverage-output.txt ]; then
+            {
+              echo "## Test coverage (scoped)"
+              echo ""
+              echo "Enforced at **100%** on \`lib/**\`, \`app/actions/**\`, and \`proxy.ts\` (see \`vitest.config.ts\`)."
+              echo ""
+              echo '```text'
+              tail -25 coverage-output.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
