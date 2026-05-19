@@ -1,5 +1,5 @@
 # My Usage
-## force PR try 2 (to be deleted)
+
 Next.js 16 (App Router) with **GitHub-only Auth.js** (next-auth v5), **Neon Postgres** via `@auth/neon-adapter` and `@neondatabase/serverless`, and **shadcn/ui**. **next-themes** provides light/dark styling (default **light** on first load).
 
 **Routes:** `/` redirects by session; `/login` is the hero + GitHub sign-in card; `/dashboard` is protected by **Next.js 16 `proxy.ts`** (Auth.js session gate).
