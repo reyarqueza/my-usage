@@ -1,5 +1,7 @@
 # My Usage
 
+[![codecov](https://codecov.io/gh/reyarqueza/my-usage/graph/badge.svg)](https://codecov.io/gh/reyarqueza/my-usage)
+
 Next.js 16 (App Router) with **GitHub-only Auth.js** (next-auth v5), **Neon Postgres** via `@auth/neon-adapter` and `@neondatabase/serverless`, and **shadcn/ui**. **next-themes** provides light/dark styling (default **light** on first load).
 
 **Routes:** `/` redirects by session; `/login` is the hero + GitHub sign-in card; `/dashboard` is protected by **Next.js 16 `proxy.ts`** (Auth.js session gate).
@@ -24,6 +26,33 @@ npm run test:coverage # coverage report + threshold enforcement
 ```
 
 HTML coverage output is written under `coverage/` (ignored by git and ESLint).
+
+## CI and coverage
+
+Every **push** and **pull request** to `main` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+1. `npm ci` and `npm run test:coverage` (same scoped **100%** thresholds as local).
+2. A **job summary** on the Actions run (open the run → **Summary**) with the Vitest coverage table.
+3. Upload of `coverage/lcov.info` to [Codecov](https://codecov.io/gh/reyarqueza/my-usage) when tests pass.
+
+Codecov tracks **scoped unit coverage** (`lib/`, `app/actions/`, `proxy.ts`) — not the full Next.js app. Merge is enforced by Vitest thresholds in CI (and your branch ruleset); Codecov adds PR comments, history, and the badge above.
+
+**Code scanning:** if your ruleset requires it, enable **CodeQL** under **Settings → Code security and analysis** so PRs get code scanning results on `main`.
+
+### Repository secrets (maintainers)
+
+| Secret | Used by |
+| --- | --- |
+| `CODECOV_TOKEN` | CI → Codecov upload |
+| `REYARQUEZA_BOT_TOKEN` | [Bot approve PR](.github/workflows/bot-approve-pr.yml) workflow |
+
+### Manual PR approval (optional)
+
+When branch rules require a review you cannot self-approve:
+
+1. Ensure **`reyarqueza-bot`** is a collaborator with **Write** access and `REYARQUEZA_BOT_TOKEN` is set.
+2. **Actions → Bot approve PR → Run workflow** → choose the branch with the workflow file → enter the **PR number**.
+3. The PR shows an approval from **reyarqueza-bot**; merge separately if CI and other checks are green.
 
 **Environment:** create **`.env.local`** (do not commit) with at least:
 

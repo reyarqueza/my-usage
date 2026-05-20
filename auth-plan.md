@@ -523,3 +523,4 @@ These items match the **implemented** application as of maintenance of this docu
 
 - [x] Vitest + `@vitest/coverage-v8` + `happy-dom`; [`vitest.config.ts`](vitest.config.ts) with scoped **100%** coverage thresholds
 - [x] `lib/utils.test.ts`, `app/actions/auth.test.ts`, `proxy.test.ts` (Auth.js mocked in action/proxy tests)
+- [x] GitHub Actions CI + Codecov documented in [README.md](README.md#ci-and-coverage)
