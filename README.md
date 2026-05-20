@@ -29,8 +29,6 @@ HTML coverage output is written under `coverage/` (ignored by git and ESLint).
 
 ## CI and coverage
 
-> **Temporary:** PR opened to re-run CI/Codecov and preview the richer PR comment from [`codecov.yml`](codecov.yml). Remove this note after verifying.
-
 Every **push** and **pull request** to `main` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 1. `npm ci` and `npm run test:coverage` (same scoped **100%** thresholds as local).
