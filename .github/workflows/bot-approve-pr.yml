@@ -1,0 +1,27 @@
+# Manual approval as reyarqueza-bot (machine user).
+# Setup: create PAT on reyarqueza-bot → repo secret REYARQUEZA_BOT_TOKEN (pull requests: read and write).
+name: Bot approve PR
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to approve
+        required: true
+        type: number
+
+jobs:
+  approve:
+    name: Approve as reyarqueza-bot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve pull request
+        env:
+          GH_TOKEN: ${{ secrets.REYARQUEZA_BOT_TOKEN }}
+        run: |
+          gh pr review "${{ inputs.pr_number }}" \
+            --repo "${{ github.repository }}" \
+            --approve \
+            --body "Approved manually via **Bot approve PR** workflow."
