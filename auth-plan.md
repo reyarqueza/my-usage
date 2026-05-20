@@ -239,7 +239,7 @@ export const { GET, POST } = handlers
 
 Auth.js documents the Neon adapter schema explicitly (table names and column casing matter because of quoted identifiers like `"userId"`).
 
-Run the following in the **Neon console** (or check in as `scripts/auth-schema.sql`). This is derived from the official Auth.js Neon schema, with **practical indexes/uniques** added for OAuth correctness and session lookup.
+Run the following in the **Neon console** (or check in as `sql-ddl/auth-schema.sql`). This is derived from the official Auth.js Neon schema, with **practical indexes/uniques** added for OAuth correctness and session lookup.
 
 ```sql
 -- Auth.js Neon adapter baseline schema (+ helpful constraints)
@@ -511,7 +511,7 @@ These items match the **implemented** application as of maintenance of this docu
 ### Auth + database
 
 - [x] `next-auth` (v5 beta), `@auth/neon-adapter`, `@neondatabase/serverless`
-- [x] Neon / `scripts/auth-schema.sql` — `users`, `accounts`, `sessions`, `verification_token` + indexes
+- [x] Neon / `sql-ddl/auth-schema.sql` — `users`, `accounts`, `sessions`, `verification_token` + indexes
 - [x] `auth.ts` — lazy `NextAuth`, `Pool` in factory, `NeonAdapter`, GitHub-only, DB sessions
 - [x] `app/api/auth/[...nextauth]/route.ts` — `handlers`
 - [x] **`proxy.ts`** — unauthenticated `/dashboard` → `/login` (`matcher`), with **await** of lazy `auth()` middleware callback

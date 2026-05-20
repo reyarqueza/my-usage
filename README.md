@@ -74,7 +74,7 @@ Do these in any order, but **Neon schema** and **GitHub OAuth** must be ready be
 ### 1. Neon (database)
 
 1. Create a **Neon** project and database (via [neon.tech](https://neon.tech) or the **Vercel → Storage → Neon** integration on your Vercel project).
-2. Open the Neon **SQL Editor** and run the script in [`scripts/auth-schema.sql`](scripts/auth-schema.sql) (tables: `users`, `accounts`, `sessions`, `verification_token`).
+2. Open the Neon **SQL Editor** and run the script in [`sql-ddl/auth-schema.sql`](sql-ddl/auth-schema.sql) (tables: `users`, `accounts`, `sessions`, `verification_token`).
 3. Copy the **connection string** (`postgresql://…`) and set it as **`DATABASE_URL`** in `.env.local` (and in Vercel for deployments).
 
 If you use the **Vercel Neon integration**, link the database to the project so `DATABASE_URL` can be managed in the Vercel dashboard.
