@@ -1,0 +1,13 @@
+comment:
+  layout: "header, diff, flags, components, reach, focal, lines"
+  behavior: default
+  require_changes: false  # Posts the full massive comment on every single PR
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true # Sends green/red status checks without blocking PR merges
+    patch:
+      default:
+        informational: true
