@@ -1,6 +1,8 @@
 # Manual approval as reyarqueza-bot (machine user).
 # Setup: create PAT on reyarqueza-bot → repo secret REYARQUEZA_BOT_TOKEN (pull requests: read and write).
 name: Bot approve PR
+permissions:
+  contents: read
 
 on:
   workflow_dispatch:
