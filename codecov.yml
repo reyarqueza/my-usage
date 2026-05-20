@@ -1,5 +1,5 @@
 comment:
-  layout: "header, sunburst, diff, flags, components, reach, focal, lines"
+  layout: "header, reach, diff, flags, files"
   behavior: default
   require_changes: false  # Posts the full massive comment on every single PR
 
